@@ -26,26 +26,49 @@ python3.10 scripts/task-runner.py 员工模式 "
 
 ---
 
-### 2. deep-learning-guide
+### 2. dual-expert-chat v4.0
+**双专家研讨** - 纯分析/辩论/决策
+
+- **blind_review** - 真盲审（专家独立选视角）
+- **debate** - 正反方辩论
+- **panel** - 圆桌研讨
+- 无 shell 副作用，纯分析
+
+**使用示例：**
+```bash
+cd dual-expert-chat
+python3 main.py blind_review "这个技术方案是否可行？"
+```
+
+---
+
+### 3. expert-orchestrator v1.0 🆕
+**执行引擎** - 编码/架构/部署/批量操作
+
+- 四阶段流水线（Architect → Inspector → Executor → Tester）
+- 断点续跑（`--runtime-dir`）
+- 检查点持久化
+- 会执行 shell 命令
+
+**使用示例：**
+```bash
+cd expert-orchestrator
+python3 main.py "创建一个 Flask API 项目"
+python3 main.py --runtime-dir ./my-task "继续执行"
+```
+
+---
+
+### 4. deep-learning-guide
 **深度学习指导** - AI 学习助手
 
 - 深度学习知识问答
 - 学习路径规划
 - 代码示例生成
-- 概念解释
 
 ---
 
-### 3. dual-expert-chat
-**双专家对话** - 深度分析工具
-
-- 双 AI 协作分析
-- 多角度问题解答
-- 深度研究报告
-
----
-
-### 4. academic-deep-research
+### 5. academic-deep-research
 **学术深度研究** - 文献调研助手
 
 - 文献检索与分析
@@ -54,77 +77,40 @@ python3.10 scripts/task-runner.py 员工模式 "
 
 ---
 
-## 🚀 快速开始
-
-```bash
-# 克隆仓库
-git clone https://github.com/yueyang69/myopenclaw-skills.git
-cd myopenclaw-skills
-
-# 安装依赖（按技能需求）
-pip install -r auto-task-runner/requirements.txt
-```
-
----
-
 ## 📋 技能对比
 
-| 技能 | 适用场景 | 模型 | 耗时 |
-|------|---------|------|------|
-| auto-task-runner | 自动化任务 | qwen + claude | ~25 秒/任务 |
-| deep-learning-guide | 学习指导 | qwen | ~5 秒/问题 |
-| dual-expert-chat | 深度分析 | qwen + claude | ~15 秒/问题 |
-| academic-deep-research | 学术研究 | qwen + claude | ~30 秒/主题 |
+| 技能 | 定位 | 副作用 | 断点续跑 | 耗时 |
+|------|------|--------|---------|------|
+| auto-task-runner | 自动化任务队列 | ✅ | ✅ | ~25 秒/任务 |
+| dual-expert-chat | 纯研讨分析 | ❌ | ❌ | ~15 秒/问题 |
+| expert-orchestrator | 执行引擎 | ✅ | ✅ | ~30 秒/步骤 |
+| deep-learning-guide | 学习指导 | ❌ | ❌ | ~5 秒/问题 |
+| academic-deep-research | 学术研究 | ❌ | ❌ | ~30 秒/主题 |
 
 ---
 
-## 🔧 配置
+## 🎯 如何选择
 
-### auto-task-runner 配置
+**需要执行命令/写代码？**
+- 简单任务 → `auto-task-runner`
+- 复杂项目 → `expert-orchestrator`
+
+**只需要分析/讨论？**
+- 深度研讨 → `dual-expert-chat`
+- 学习问题 → `deep-learning-guide`
+- 学术研究 → `academic-deep-research`
+
+---
+
+## 🔗 仓库
+
+**GitHub:** https://github.com/yueyang69/myopenclaw-skills
+
 ```bash
-cd auto-task-runner
-# 编辑 SKILL.md 配置环境变量
-export DINGTALK_WEBHOOK="your-webhook-url"
-export WORKSPACE="/path/to/workspace"
+git clone https://github.com/yueyang69/myopenclaw-skills.git
 ```
 
 ---
 
-## 📊 模型使用
-
-| 模型 | 用途 | 成本 |
-|------|------|------|
-| qwen3.5-plus | 任务执行、报告生成 | $0.01/1K tokens |
-| claude-sonnet-4-6 | 方案审查、结果验证 | $0.03/1K tokens |
-
-**单任务平均成本：** ~¥0.25
-
----
-
-## 📝 更新日志
-
-### 2026-03-15
-- ✨ auto-task-runner v3.2 完整修复
-- 🐛 修复 architect.py 默认命令生成
-- 🐛 修复 verifier.py 关键词判断
-- ✅ Python 3.10.14 支持
-
-### 2026-03-14
-- ✨ deep-learning-guide 初始版本
-- ✨ dual-expert-chat 初始版本
-
----
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
----
-
-## 📄 许可证
-
-MIT License
-
----
-
-**维护者：** [@yueyang69](https://github.com/yueyang69)
+**维护者：** [@yueyang69](https://github.com/yueyang69)  
+**更新时间：** 2026-03-15
