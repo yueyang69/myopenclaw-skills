@@ -58,8 +58,8 @@ python3.10 scripts/task-runner.py 员工模式 "
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yueyang69/openclaw-skills.git
-cd openclaw-skills
+git clone https://github.com/yueyang69/myopenclaw-skills.git
+cd myopenclaw-skills
 
 # 安装依赖（按技能需求）
 pip install -r auto-task-runner/requirements.txt
