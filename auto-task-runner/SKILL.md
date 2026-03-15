@@ -1,13 +1,12 @@
 ---
 name: auto-task-runner
-description: 自动任务执行器 v3.2 - 员工模式 + 任务队列 + 双模型协作 + 钉钉通知
+description: 自动任务执行器 v4.0 - Layer 1 调度层（纯调度，不执行）
 author: OpenClaw
-version: 3.2.0
+version: 4.0.0
 triggers:
+  - "任务队列"
+  - "批量任务"
   - "员工模式"
-  - "执行任务"
-  - "自动任务"
-  - "任务进度"
 metadata:
   requires:
     bins: ["python3"]
@@ -17,10 +16,10 @@ metadata:
         description: "钉钉机器人 Webhook URL"
         default: ""
       WORKSPACE:
-        description: "任务执行的工作目录（非文件存储目录）"
+        description: "任务执行的工作目录"
         default: "/home/admin/.openclaw/workspace"
       STEP_INTERVAL:
-        description: "步骤间隔秒数，用于 GC 清内存"
+        description: "步骤间隔秒数"
         default: "30"
       QUEUE_TASK_INTERVAL:
         description: "队列任务间隔秒数"
@@ -30,90 +29,113 @@ metadata:
         default: "8"
 ---
 
-# 自动任务执行器 v3.2
+# auto-task-runner v4.0
 
-**老板模式：早会布置任务，晚上看结果**
+**Layer 1 调度层：早上给任务，晚上看结果**
 
 ---
 
-## 🎯 核心特性
+## 🎯 核心职责
 
-| 特性 | 说明 |
+| 职责 | 说明 |
 |------|------|
-| **员工模式** | 触发词「员工模式」，AI确认理解后自动执行 |
-| **任务队列** | 批量添加任务，依次自动执行 |
-| **双模型协作** | qwen3.5-plus (主力) + claude-sonnet-4.6 (关键验证) |
+| **任务解析** | 自然语言任务清单 → tasks.json |
+| **两步判断** | ① 能直接执行吗？② 哪个 skill 最合适？ |
+| **路由分发** | 调用对应 skill / 直接执行 shell |
+| **状态持久化** | 每个任务完成后写 checkpoint |
+| **心跳保活** | 每 8 分钟 GC + 状态落盘 |
+| **崩溃恢复** | 读 state_snapshot.json 从断点继续 |
 | **钉钉通知** | 开始/完成/异常 全程推送 |
-| **员工日志** | 每日报告存 `employee-logs/YYYY-MM-DD/` |
-| **心跳保活** | 每8分钟状态落盘 + GC，2GB内存友好 |
+
+**不负责：**
+- ❌ 任何执行逻辑（交给各 skill）
+- ❌ 模型调用（交给 skill）
+- ❌ 任务拆解（交给 dual-expert-chat）
 
 ---
 
-## 🏗️ 架构
+## 🏗️ 架构定位
 
 ```
-┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-│ Architect   │→ │ Inspector   │→ │ Executor    │→ │ Tester      │
-│ (双模型商量) │  │ (依赖检查)  │  │ (qwen 执行)  │  │ (双模型验收)│
-└─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘
-                        ↑                ↓
-                        └── Verifier ←───┘
-                           (claude 验证)
+Layer 0：守护层（pm2）
+    ↓ 崩溃重启
+Layer 1：调度层（本 skill）← 你在这里
+    ↓ 路由分发
+Layer 2：执行层（各 skill）
 ```
 
-### 四阶段流程
+**本 skill 只管「排队、判断、路由、状态、恢复」，不管「怎么执行」。**
 
-1. **📐 建筑师 (Architects)** - qwen ←→ claude 商量生成 PlanList.md
-2. **🏃 执行循环** - 每个步骤：qwen 执行 → claude 验证 → 写检查点
-3. **✅ 测试师 (Tester)** - qwen ←→ claude 商量生成 Report.md
-4. **💓 心跳** - 每 8-10 分钟强制保存状态 + GC
+---
+
+## 📋 两步任务判断
+
+### 第一步：能直接执行吗？
+
+判断条件：
+- 有明确 shell 关键词（清理/删除/压缩/检查/统计/查看）
+- 且没有「分析/设计/调研/生成/编写」等思考词
+
+→ 是：直接执行 shell 命令，不调任何 skill  
+→ 否：进入第二步
+
+### 第二步：哪个 skill 最合适？
+
+关键词匹配 `config/router.json`：
+
+| 关键词 | 路由到 |
+|--------|--------|
+| PDF、合并、拆分 | pdf-toolkit |
+| 搜索、网络查找 | searxng |
+| PR、代码审查 | pr-reviewer |
+| bug、报错、debug | debug-pro |
+| 股票、A股、K线 | a-stock |
+| 代码分析、复杂度 | code-mentor |
+| 调研、研究、综述 | academic-deep-research |
+| **未匹配（兜底）** | **dual-expert-chat** |
 
 ---
 
 ## 📝 命令
 
-### ⭐ 员工模式（最推荐）
-
-触发词：`员工模式`
+### 添加任务到队列
 
 ```bash
-python3 scripts/task-runner.py 员工模式 "
-1. 清理30天前的日志
-2. 压缩workspace下的内存文件
-3. 检查磁盘空间，生成报告
-4. 做一个深入学习的skill
-"
+python3 scripts/task-runner.py queue add "清理30天前的日志"
+python3 scripts/task-runner.py queue add "分析服务器架构，提出优化方案"
+python3 scripts/task-runner.py queue add "调研主流向量数据库"
 ```
 
-**对话流程：**
-```
-小智员工收到任务，正在理解中...
+### 查看队列
 
-📋 收到老板！我来确认一下我的理解：
-
-  任务1：扫描日志目录，压缩30天前的文件
-  任务2：压缩workspace下的大文件
-  任务3：df -h检查磁盘，生成使用报告
-  任务4：设计并实现深入学习skill
-
-以上理解正确吗？
-- 直接回车 = 确认，开始执行
-- 输入补充说明 = 更新理解后开始
-- 输入 '取消' = 取消
-
-> [用户回车或补充]
-
-✅ 确认！开始执行，完成后钉钉通知你
+```bash
+python3 scripts/task-runner.py queue list
 ```
 
-**执行完成后报告目录：**
+输出示例：
 ```
-.runtime/employee-logs/2026-03-14/
-  ├── task-01-清理30天前的日志.md
-  ├── task-02-压缩workspace.md
-  ├── task-03-检查磁盘空间.md
-  ├── task-04-深入学习skill.md
-  └── summary.md
+──────────────────────────────────────────────────────────────────────
+任务队列 (3 个任务)
+──────────────────────────────────────────────────────────────────────
+  [1] ⏳ 清理30天前的日志
+  [2] ⏳ 分析服务器架构，提出优化方案
+  [3] ⏳ 调研主流向量数据库
+──────────────────────────────────────────────────────────────────────
+```
+
+### 启动执行队列
+
+```bash
+python3 scripts/task-runner.py queue start
+```
+
+**然后去忙别的，晚上看结果。**
+
+### 清空队列
+
+```bash
+python3 scripts/task-runner.py queue clear   # 只清除待执行任务
+python3 scripts/task-runner.py queue reset   # 完全清空
 ```
 
 ---
@@ -123,121 +145,21 @@ python3 scripts/task-runner.py 员工模式 "
 ```
 auto-task-runner/
 ├── scripts/
-│   ├── task-runner.py          # 主入口 (orchestrator)
-│   ├── architect.py            # 建筑师模块 (动态任务分解)
-│   ├── executor.py             # 执行器模块 (本地执行)
-│   ├── verifier.py             # 验证器模块 (claude 关键验证)
-│   ├── model_client.py         # 模型调用客户端 (三级降级)
-│   └── tester.py               # 测试师模块
-├── .runtime/                   # 运行时数据（自动生成，不要手动修改）
-│   ├── plans/                  # 任务分解计划
-│   ├── reports/                # 执行报告
-│   ├── checkpoints/            # 每步检查点
-│   │   ├── step_1_executed.json
-│   │   └── step_1_verified.json
-│   ├── logs/
-│   │   └── task-runner.log
-│   └── state_snapshot.json     # 心跳快照（崩溃恢复用）
+│   ├── task-runner.py          # 主入口（调度核心）
+│   ├── router.py               # 路由器（两步判断）
+│   └── resource_guard.py       # 资源守卫（内存/磁盘/模型限流）
+├── config/
+│   ├── router.json             # 路由规则（可扩展）
+│   └── skill_registry.json     # skill 注册表
+├── .runtime/                   # 运行时数据（自动生成）
+│   ├── tasks.json              # 任务队列
+│   ├── state_snapshot.json     # 心跳快照
+│   ├── model_usage.json        # 模型调用次数统计
+│   ├── checkpoints/            # 每个任务的 checkpoint
+│   └── logs/
+│       └── task-runner.log
 └── SKILL.md
 ```
-
----
-
-## 📋 PlanList.md 格式
-
-```markdown
-# PlanList.md - 日志轮转脚本
-
-| Step ID | 步骤名称 | 依赖 | 预计耗时 | 命令 | 状态 |
-|---------|---------|------|---------|------|------|
-| 1 | 分析现有日志结构 | 无 | 2min | `ls -lh logs/` | done |
-| 2 | 编写轮转脚本 | 1 | 5min | `cat > script.sh...` | done |
-| 3 | 测试脚本 | 2 | 3min | `bash script.sh` | pending |
-| 4 | 配置 cron | 3 | 2min | `crontab -e` | pending |
-| 5 | 验证运行 | 4 | 1min | `crontab -l` | pending |
-```
-
----
-
-## 🔍 检查点格式
-
-### 执行检查点 (step_N_executed.json)
-```json
-{
-  "step_id": 1,
-  "step_name": "分析现有日志结构",
-  "executor": "dashscope-coding/qwen3.5-plus",
-  "executor_output": "logs/ 目录下有 3 个文件...",
-  "success": true,
-  "executed_at": "2026-03-14T20:00:00"
-}
-```
-
-### 验证检查点 (step_N_verified.json)
-```json
-{
-  "step_id": 1,
-  "step_name": "分析现有日志结构",
-  "verifier": "openai/claude-sonnet-4-6",
-  "verifier_decision": "done",
-  "verifier_reason": "输出包含完整的日志文件列表，分析完成",
-  "verified_at": "2026-03-14T20:02:00"
-}
-```
-
----
-
-## ⏱️ 心跳机制
-
-### 时间分配（8-10 分钟）
-
-| 操作 | 模型 | 耗时 |
-|------|------|------|
-| qwen 执行命令 | qwen3.5-plus | 3-4min |
-| 切换模型 | - | 30s-1min |
-| claude 验证 | claude-sonnet-4.6 | 2-3min |
-| 保存检查点 + GC | - | 1min |
-| **总计** | - | **7-9min** ✅ |
-
-### 心跳触发时
-
-1. **状态序列化** → `.state_snapshot.json`
-2. **强制 GC** → 释放内存
-3. **内存检查** → <300MB 触发额外清理
-4. **重置计时器** → 继续执行
-
----
-
-## 🛠️ 任务描述技巧
-
-v3.1 支持自然语言，qwen + claude 自动拆解步骤，无需手动配置。
-
-**好的任务描述示例：**
-- `"检查 /var/log 目录，压缩30天前的日志，释放磁盘空间"`
-- `"扫描工作区的 Python 文件，找出超过500行的大文件并生成报告"`
-- `"测试服务器上的3个 API 接口是否正常响应，记录结果"`
-
-**描述越具体，拆解越准确。**
-
----
-
-## 📊 日志
-
-位置：`/home/admin/.openclaw/workspace/logs/task-runner.log`
-
-查看日志：
-```bash
-tail -f /home/admin/.openclaw/workspace/logs/task-runner.log
-```
-
----
-
-## ⚠️ 注意事项
-
-1. **任务命名必须精确匹配** - "日志轮转脚本" 不能写成 "日志轮转"
-2. **每步预计耗时 <8 分钟** - 适配心跳机制
-3. **依赖关系必须正确** - 否则会被 Inspector 拦截
-4. **检查点持久化** - 崩溃后自动恢复
 
 ---
 
@@ -245,10 +167,84 @@ tail -f /home/admin/.openclaw/workspace/logs/task-runner.log
 
 任务执行中如果崩溃（内存溢出、网络中断等）：
 
-1. 重新运行 `python3 task-runner.py run "任务名称"`
-2. 自动加载 `.state_snapshot.json`
-3. 从最后完成的步骤继续
+1. pm2 自动重启 `task-runner.py`
+2. 读取 `state_snapshot.json`
+3. 从上一个完成的任务继续
+4. 钉钉通知：「任务已从断点恢复」
 
 ---
 
-*版本：3.1.0 | 最后更新：2026-03-14*
+## 🛡️ 资源管控
+
+### 内存规则
+
+| 可用内存 | 动作 |
+|---------|------|
+| < 300MB | 警告 + 强制 GC |
+| < 150MB | 暂停任务，等待 60s 后重试 |
+
+### 磁盘规则
+
+| 项目 | 限制 |
+|------|------|
+| `.runtime/` 总大小 | 2GB |
+| `checkpoints/` | 保留最近 100 个文件 |
+| `logs/` | 单文件 100MB，最多 3 个 |
+
+### 模型限流
+
+| 模型 | 每小时上限 | 超限动作 |
+|------|----------|---------|
+| qwen | 40 次 | 暂停 10 分钟 |
+| claude | 15 次 | 降级为 qwen 验证 |
+
+---
+
+## 📊 日志
+
+位置：`.runtime/logs/task-runner.log`
+
+查看日志：
+```bash
+tail -f .runtime/logs/task-runner.log
+```
+
+---
+
+## 🔧 扩展
+
+### 新增 skill 路由
+
+编辑 `config/router.json`，加一条规则：
+
+```json
+{
+  "keywords": ["新关键词1", "新关键词2"],
+  "skill": "new-skill-name"
+}
+```
+
+编辑 `config/skill_registry.json`，加一条注册：
+
+```json
+"new-skill-name": {
+  "script": "skills/new-skill/main.py",
+  "invoke": "subprocess",
+  "args": []
+}
+```
+
+无需改代码，重启即生效。
+
+---
+
+## ⚠️ 注意事项
+
+1. **本 skill 只管调度**，不实现任何执行逻辑
+2. **所有复杂任务**最终都会路由到 `dual-expert-chat`（兜底）
+3. **直接执行任务**仅限简单 shell 命令（清理/检查/压缩等）
+4. **模型调用次数**由 Layer 0 守护层监控，超限自动限流
+
+---
+
+*版本：4.0.0 | 最后更新：2026-03-15*

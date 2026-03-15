@@ -1,0 +1,43 @@
+{
+  "dual-expert-chat": {
+    "script": "skills/dual-expert-chat/main.py",
+    "invoke": "subprocess",
+    "args": []
+  },
+  "academic-deep-research": {
+    "script": "skills/academic-deep-research/main.py",
+    "invoke": "subprocess",
+    "args": ["--mode", "autonomous"]
+  },
+  "pdf-toolkit": {
+    "script": "skills/pdf-toolkit-pro/scripts/merge.js",
+    "invoke": "subprocess",
+    "args": []
+  },
+  "searxng": {
+    "script": "skills/searxng/scripts/searxng.py",
+    "invoke": "subprocess",
+    "args": []
+  },
+  "pr-reviewer": {
+    "script": "skills/pr-reviewer/scripts/pr-review.sh",
+    "invoke": "subprocess",
+    "args": []
+  },
+  "debug-pro": {
+    "script": "skills/debug-pro/main.py",
+    "invoke": "subprocess",
+    "args": []
+  },
+  "a-stock": {
+    "script": "skills/a-stock-trading-assistant/scripts/fetch_stock.py",
+    "invoke": "subprocess",
+    "args": []
+  },
+  "code-mentor": {
+    "script": "skills/code-mentor/scripts/analyze_code.py",
+    "invoke": "subprocess",
+    "args": []
+  }
+}
+

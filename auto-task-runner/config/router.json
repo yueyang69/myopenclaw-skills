@@ -1,0 +1,36 @@
+{
+  "direct_keywords": [
+    "清理", "删除", "压缩", "检查", "统计", "查看", "列出", "显示", "备份", "复制", "移动"
+  ],
+  "skill_routes": [
+    {
+      "keywords": ["PDF", "合并", "拆分", "压缩文件"],
+      "skill": "pdf-toolkit"
+    },
+    {
+      "keywords": ["搜索", "网络查找", "爬取"],
+      "skill": "searxng"
+    },
+    {
+      "keywords": ["PR", "代码审查", "review"],
+      "skill": "pr-reviewer"
+    },
+    {
+      "keywords": ["bug", "报错", "debug", "修复"],
+      "skill": "debug-pro"
+    },
+    {
+      "keywords": ["股票", "A股", "K线", "行情"],
+      "skill": "a-stock"
+    },
+    {
+      "keywords": ["代码分析", "复杂度", "重构"],
+      "skill": "code-mentor"
+    },
+    {
+      "keywords": ["调研", "研究", "文献", "综述", "对比报告"],
+      "skill": "academic-deep-research"
+    }
+  ]
+}
+
